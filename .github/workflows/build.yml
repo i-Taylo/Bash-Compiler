@@ -1,0 +1,65 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        # Set non-interactive mode and clear package manager locks
+        export DEBIAN_FRONTEND=noninteractive
+        sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+
+        # Update and install with retries
+        sudo apt-get update
+        for attempt in {1..3}; do
+          sudo apt-get install -y make cmake g++ build-essential && break || sleep 10
+        done
+
+    - name: Set up Build Directory
+      run: mkdir -p build
+
+    - name: Configure with CMake
+      working-directory: build
+      run: cmake ..
+
+    - name: Build Project
+      working-directory: build
+      run: make
+
+    - name: Run Tests
+      working-directory: build
+      run: ctest --output-on-failure
+
+    - name: Package as .deb
+      working-directory: build
+      run: |
+        cpack
+        # Check if .deb package was created
+        if [ -f *.deb ]; then
+          echo "Package created successfully."
+        else
+          echo "No package created. Check the CMake configuration and build steps."
+          exit 1
+        fi
+
+    - name: Upload Package
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: BashCompiler-deb-package
+        path: build/*.deb
+
+    - name: Clean up Build Directory
+      if: always()
+      run: rm -rf build

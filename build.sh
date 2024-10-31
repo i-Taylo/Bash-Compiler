@@ -5,7 +5,7 @@
 set -e
 
 abort() {
-    echo >&2 "$1"
+    echo -e >&2 "$1"
     exit 1
 }
 
@@ -14,7 +14,9 @@ command_exists() {
 }
 
 install_command() {
-    if command_exists apt; then
+    if command_exists pkg; then
+        pkg install -y "$1"
+    elif command_exists apt; then
         sudo apt install -y "$1"
     elif command_exists pacman; then
         sudo pacman -S --noconfirm "$1"
@@ -24,16 +26,20 @@ install_command() {
         sudo yum install -y "$1"
     elif command_exists apk; then
         sudo apk add "$1"
-    elif command_exists pkg; then
-        pkg install -y "$1"  # For Termux
     else
         abort "Package manager not supported. Please install $1 manually."
     fi
 }
 
+DIRNAME="Bash-Compiler"
 ROOT="$(pwd)"
+
+if [[ "$ROOT" != */$DIRNAME ]]; then
+    abort "Please run this script in the root directory."
+fi
+
 BUILD_DIR="$ROOT/build"
-DEPS=(make cmake g++)
+DEPS=(make cmake clang)
 
 [ -d $BUILD_DIR ] && rm -rf $BUILD_DIR/*
 [ ! -d "$BUILD_DIR" ] && mkdir -p "$BUILD_DIR"

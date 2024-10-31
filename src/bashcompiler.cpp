@@ -14,11 +14,40 @@
 #include <getopt.h>
 #include <random>
 #include "include/obfuscate.h" // Author: Adam Yaxley | check the header for more info.
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include <vector>
+#include <sstream>
+#include <sys/stat.h>
 
 #define __BASHCOMPILER_VERSION__ "0.1"
 #define __BASHCOMPILER_PROGRAM__ "BashCompiler"
 #define __BASHCOMPILER_MAINTAINER__ "Taylox"
 
+auto commandExists(const std::string &command) -> bool {
+    const char *pathEnv = std::getenv("PATH");
+    if (!pathEnv) {
+        return false;
+    }
+
+    std::string pathStr(pathEnv);
+    std::istringstream pathStream(pathStr);
+    std::string dir;
+
+    while (std::getline(pathStream, dir, ':')) {
+        std::string fullPath = dir + "/" + command;
+
+        struct stat buffer;
+        if (stat(fullPath.c_str(), &buffer) == 0 && (buffer.st_mode & S_IXUSR)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// BashCompiler Class
 class BashCompiler {
 private:
     std::string scriptFile;
@@ -115,7 +144,22 @@ void printVersion() {
     return;
 }
 
+auto abort(const std::string &errMessage) -> void {
+    std::cout << errMessage << std::endl;
+    exit(1);
+}
+
 int main(int argc, char* argv[]) {
+
+    std::vector<std::string> DEPS = {
+        "g++"
+    };
+    for(auto &dep : DEPS) {
+        if (!commandExists(dep)) {
+            abort(dep +": Not installed! please install it or run build script to install dependencies.\n");
+        }
+    }
+
     std::string scriptFile;
     std::string outputFile;
     bool optimize = false;
